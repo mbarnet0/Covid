@@ -1,2 +1,2 @@
-# BBY_Covid_PNAS
+# Covid
 Code for PNAS Paper "Epidemic Responses Under Uncertainty"
