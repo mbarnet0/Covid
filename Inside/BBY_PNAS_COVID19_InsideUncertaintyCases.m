@@ -1,0 +1,559 @@
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% Markov Approx. Method For Covid Policy with SA Aversion
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+clear all
+close all
+clc
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% Filename set-up
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+directory = pwd;
+% stop
+
+% Setting for saving data and figures
+savedata   = 1 ; 
+initialize = 1 ; % == 0 if already have VF
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% Parameters for the model
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% RATES - ALLL MEASURED AS PER-YEAR RATES 
+r  = 0.03./12;    % annual interest rate
+nu = 1./1.0./12;       % annual vaccine arrival rate
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% Vectors for SA
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+ggamma  = 30/18;    %  avg 18 DAYS to get out of infection state (either recovered or dead)
+
+R_0 = [1.5, 4.5]
+CFR = [0.005, 0.02]
+thetas = [0.35, 0.65]
+aas = [0.0000, 0.8]
+
+
+for pp = 1:length(aas)
+    for oo = 1:length(thetas)
+        for mm = 1:length(ggamma)
+            for nn = 1:length(R_0)
+                for ll = 1:length(CFR)
+                    delta_vec(mm,ll,nn,oo,pp) = ggamma(mm).*CFR(ll);
+                    rho_vec(mm,ll,nn,oo,pp) = ggamma(mm)-delta_vec(mm,ll,nn);
+                    beta_vec(mm,ll,nn,oo,pp) = ggamma(mm).*R_0(nn);
+                    theta_vec(mm,ll,nn,oo,pp) = thetas(oo);
+                    aa_vec(mm,ll,nn,oo,pp) = aas(pp);
+                end
+            end
+        end
+    end
+end
+
+delta_vals = delta_vec(:);
+rho_vals = rho_vec(:);
+beta_vals = beta_vec(:);
+theta_vals = theta_vec(:);
+aa_vals = aa_vec(:);
+
+beta = mean(beta_vals);
+rho = mean(rho_vals);
+delta = mean(delta_vals);
+theta = mean(theta_vals);
+aa = mean(aa_vals);
+
+upsilon = 5*delta;
+
+weights = zeros(size(delta_vals));
+
+
+if weight_vals == 1
+    
+% split
+val = 0.5;
+weights(:) = (1-val)./(length(weights)-1);
+weights(5) = weights(5)./2+val./2;
+weights(12) = weights(12)./2+val./2;
+
+filename_save = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_11']; % split-weighted prior (4), uncertainty neutral (1)
+
+if xi_vals == 2
+xi = 0.00745; 
+filename_load = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_11']; % split-weighted prior (4), uncertainty averse (2)
+filename_save = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_12']; % split-weighted prior (4), uncertainty averse (2)
+end
+
+
+elseif weight_vals == 2
+% over
+weights(:) = 0.5./(length(weights)-1);
+weights(12) = 0.5;
+
+filename_save = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_21']; % over-weighted prior (4), uncertainty neutral (1)
+
+if xi_vals == 2
+xi = 0.002;
+filename_load = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_21']; % over-weighted prior (4), uncertainty averse (2)
+filename_save = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_22']; % over-weighted prior (4), uncertainty averse (2)
+end
+
+
+
+elseif weight_vals == 3
+% under
+weights(:) = 0.5./(length(weights)-1);
+weights(5) = 0.5;
+
+filename_load = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_31']; % under-weighted prior (4), uncertainty neutral (1)
+
+if xi_vals == 2
+xi = 0.0042;      
+filename_load = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_31']; % under-weighted prior (4), uncertainty averse (2)
+filename_save = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_32']; % under-weighted prior (4), uncertainty averse (2)
+end
+
+
+elseif weight_vals == 4
+weights = (1./length(delta_vals(:))).*ones(size(delta_vals));
+weight = (1./length(delta_vals(:)));
+
+filename_load = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_41']; % equal-weighted prior (4), uncertainty neutral (1)
+
+if xi_vals == 2
+xi = 0.0032;  
+filename_load = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_41']; % equal-weighted prior (4), uncertainty neutral (1)
+filename_save = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_42']; % equal-weighted prior (4), uncertainty averse (2)
+end
+
+end
+
+
+if xi_vals == 1
+    xi = 10000;
+    smartguess = 0;
+end
+
+if xi_vals == 2
+   smartguess = 1;
+end
+
+xi
+weights
+filename_save
+
+
+
+if smartguess == 1
+SmartGuess = load(filename_load, 'V','S_mat','I_mat','beta','varphi','dV_dI','dV_dS');
+end
+
+
+% Welfare cost parameters
+w     = 1   ;  % ANNUAL GDP per capita 
+vsl   = 1  ;  % value of  stistical life as multiple of ANNUAL earnings (since w=1 ANNUAL OUTPUT)
+omega = 0.0;
+
+varphi = 1.0;
+varsigma = 1;
+
+
+% Volatility
+sigma_s = 0.0;
+sigma_i = 0.075;
+sigma_r = 0.0;
+sigma_d = 0.030;
+sigma_z = 0.016./sqrt(12);
+
+% policy vector
+phi        =  0.4;   % productivity for infected
+L_max      =  0.99;  % bench = 0.70;
+
+% Initial conditions for graphs
+I0 = 0.02; % S(1) = 1- I(1)
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% Grids for state variables
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+N_S = 650;
+k = 5;
+N_I = (N_S-1)*k + 1 ;
+
+Delta_S = 1/(N_S-1);
+Delta_I = 1/(N_I-1);
+
+hs = Delta_S;
+hi = Delta_I;
+
+ns = N_S;
+ni = N_I;
+
+S        = linspace(0,1,N_S); 
+I        = linspace(0,1,N_I); 
+
+[S_mat,I_mat] = ndgrid(S,I); 
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+% Kushner-Dupuis for comparison
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+if initialize==1
+
+    V_initial = r.*log(1-(1-phi)*I_mat)./(r+nu) -r.*log(1-S_mat.*I_mat)./(r+nu); % PV in daily output units w=1
+%     V_initial = r.*log(1-(1-phi)*I_mat)./(r+nu) ; % PV in daily output units w=1
+
+    if smartguess == 1
+    V_initial_temp = SmartGuess.V;
+    SmartGuess.check_val = SmartGuess.S_mat+SmartGuess.I_mat;
+    SmartGuess.checkval = SmartGuess.check_val.*(SmartGuess.check_val<=1);
+    SmartGuess.inds2=find(SmartGuess.checkval==0);
+    SmartGuess.inds2a = SmartGuess.inds2(2:end);
+    V_initial_temp(SmartGuess.inds2a)= 0;
+    dV_dI_initial_temp(SmartGuess.inds2a)= 0;
+    dV_dS_initial_temp(SmartGuess.inds2a)= 0;
+    
+
+      V_initial = interpn(SmartGuess.S_mat,SmartGuess.I_mat,V_initial_temp,S_mat,I_mat);
+    end
+    
+    V = V_initial;
+    V_guess = V; 
+    V_next = V_guess;
+    
+ 
+   policy=zeros(ns,ni);  policy_indx=policy; policy_L=policy_indx; 
+   iteration=0;
+end
+
+
+
+
+Diff_Der_I_m_S = zeros(ns,ni);
+
+misses = zeros(ns,ni); 
+
+check_val = S_mat+I_mat;
+checkval = check_val.*(check_val<=1);
+inds2=find(checkval==0);
+inds2a = inds2(2:end);
+Diff_Der_I_m_S(inds2a) = NaN;
+V_initial(inds2a)= NaN;
+V(inds2a) = NaN;
+V_guess(inds2a) = NaN;
+V_next(inds2a)=NaN;
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% Probabilites
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+delta_t = 1./((r+nu) ...
+    + (beta.*S_mat.*I_mat+S_mat.*I_mat.*(delta+upsilon.*I_mat)).*(1./hs) + (beta.*S_mat.*I_mat+(ggamma-(delta+upsilon.*I_mat).*I_mat).*I_mat).*(1./hi) ...
+    + ((S_mat.*I_mat).^2.*(sigma_d-sigma_i).^2).*(1./(hs.^2)) ...
+    + ((sigma_i.*I_mat.*S_mat-(1-I_mat).*I_mat.*sigma_d).^2).*(1./(hi.^2)));
+
+max_dt = min(min(min(delta_t)));
+
+dt = 0.95 * max_dt;
+
+
+L_optimal = zeros(ns,ni);
+L_old     = L_optimal ; 
+L_check     = L_optimal ; 
+check_foc = zeros(ns,ni);
+Convex_HBJ   = zeros(ns,ni); 
+
+check_val = S_mat+I_mat;
+checkval = check_val.*(check_val<=1);
+inds=find(checkval~=0);
+inds2=find(checkval==0);
+inds2a = inds2(2:end);
+V(inds2a)=NaN;
+V_next(inds2a)=NaN;
+L_check(inds2a) = NaN;
+check_val(inds2a) = NaN;
+delta_t(inds2a) = NaN;
+Diff_Der_I_m_S(inds2a) = NaN;
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+%__________________________________________________________________________
+%
+% Convergence parameters
+%__________________________________________________________________________
+% convergence tolerance level
+
+tol = 5e-8;
+tol2 = 1e-12;
+
+
+diffmax=10; diffmax_policy= diffmax; 
+%Value function iteration
+
+diff_v = 0; iters = 0; iter_check = 0;
+
+
+countchecknan = max(sum(sum(isnan(V_next))));
+[val1,val2] = size(V_next);
+countcheck = max(val1*val2-countchecknan);
+
+dV_dS = Diff_Der_I_m_S;
+dV_dI = Diff_Der_I_m_S;
+
+its_val = 50;
+
+
+while  diffmax>tol2 || (diffmax_policy > tol) 
+
+%     tic;
+
+    iteration=iteration+1   ;
+    
+if mod(iteration,its_val) == 0 || iteration == 1
+
+    
+for mods = 1:length(delta_vals)    
+    
+pi_tilde_num(:,:,mods) = weights(mods).*exp(-(1./xi).*(-(delta_vals(mods)+5.*delta_vals(mods).*I_mat).*I_mat...
+                           +(Diff_Der_I_m_S).*beta_vals(mods).*S_mat.*I_mat.*(1-theta_vals(mods).*L_optimal).^2 ...
+                           +(dV_dS.*S_mat+dV_dI.*I_mat).*I_mat.*delta_vals(mods).*(1+5.*I_mat) ...
+                           -(r.*varsigma./(r+varsigma)).*aa_vals(mods)));
+end
+
+pi_tilde_denom = sum(pi_tilde_num,3);
+beta_hat = zeros(size(S_mat));
+delta_hat = zeros(size(S_mat));
+theta_hat = zeros(size(S_mat));
+aa_hat = zeros(size(S_mat));
+beta_delta_hat = zeros(size(S_mat));
+delta_delta_hat = zeros(size(S_mat));
+beta_theta_hat = zeros(size(S_mat));
+beta_theta_theta_hat = zeros(size(S_mat));
+
+
+for mods = 1:length(delta_vals)    
+pi_tilde(:,:,mods) = pi_tilde_num(:,:,mods)./pi_tilde_denom;
+beta_hat = beta_hat+pi_tilde(:,:,mods).*beta_vals(mods);
+delta_hat = delta_hat+pi_tilde(:,:,mods).*delta_vals(mods);
+theta_hat = theta_hat+pi_tilde(:,:,mods).*theta_vals(mods);
+aa_hat = aa_hat+pi_tilde(:,:,mods).*aa_vals(mods);
+beta_delta_hat = beta_delta_hat+pi_tilde(:,:,mods).*beta_vals(mods).*delta_vals(mods);
+delta_delta_hat = delta_delta_hat+pi_tilde(:,:,mods).*delta_vals(mods).*delta_vals(mods);
+
+beta_theta_hat = beta_theta_hat+pi_tilde(:,:,mods).*beta_vals(mods).*theta_vals(mods);
+beta_theta_theta_hat = beta_theta_theta_hat+pi_tilde(:,:,mods).*beta_vals(mods).*theta_vals(mods).*theta_vals(mods);
+
+log_pi_tilde_diff(:,:,mods) = log(pi_tilde(:,:,mods))-log(weights(mods));
+end
+
+I_hat = sum(log_pi_tilde_diff.*pi_tilde,3);    
+
+end
+
+for s= 1:ns-1    
+
+     for i= 2 : ni-1-(s-1)*k
+         iter_check = iter_check+1;
+
+  %% 
+        if s == 1 
+                                    
+            L_optimal(s,i) = 0;
+            L_val = L_optimal(s,i) ; 
+            dV_dI(s,i) = (1./hi).*(V(s,i)-V(s,i-1));
+
+                V_next(s,i)  =  ...
+                    r.*log(1-(1-phi)*I(i)).*dt - 0.5.*(I(i).*sigma_d).^2.*dt ...
+                    -(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i).*dt ...
+                    + xi.*I_hat(s,i).*dt ...                   
+                    + ( (1-dt.*(r+nu)) - ( (ggamma-(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i)).*I(i).*(dt/hi) + ((-sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2)) ) ).*V(s,i) ...
+                    + ( 0.5.*((-sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2)) ).* V(s,i+1)   ...
+                    + ( (ggamma-(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i)).*I(i).*(dt./hi) + 0.5.*((-sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2))  ).*V(s,i-1);
+                
+                diff_v = diff_v + abs(V_next(s,i)-V(s,i)); if isnan(diff_v) == 1; stop; end; 
+                iters = iters+1;
+                
+  %%             
+        elseif s > 1 && s < ns
+
+              Diff_Der_I_m_S(s,i)  = 1/(hi) * (V(s,i+1) - V(s,i)) - 1/(hs) * (V(s,i) - V(s-1,i)) ;  
+              dV_dS(s,i) = 1/(hs) * (V(s,i) - V(s-1,i));
+              dV_dI(s,i) = 1/(hi) * (V(s,i+1) - V(s,i));
+
+              if isnan(Diff_Der_I_m_S(s,i)) == 1; stop; end;                      
+              if S(s+1)+I(i+1) <= 1
+                  Partial_Diff_I_S(s,i) = (V(s+1,i+1)-V(s+1,i-1)-V(s-1,i+1)+V(s-1,i-1))./(4*hs*hi);
+              else
+                  Partial_Diff_I_S(s,i) = (V(s,i+1)-V(s,i-1)-V(s-1,i+1)+V(s-1,i-1))./(2*hs*hi);
+              end
+                  
+            if  (r.*varphi).*(1-L_old(s,i)).^(-2)./ ...
+                (2.*beta_theta_theta_hat(s,i).*S(s).*I(i).*(Diff_Der_I_m_S(s,i) )) < 1            
+            Aa = 1;
+            Bb = -(beta_theta_hat(s,i)+beta_theta_theta_hat(s,i))./beta_theta_theta_hat(s,i) - (r.*varsigma./(r+varsigma)).*aa_hat(s,i)./(2.*beta_theta_theta_hat(s,i).*S(s).*I(i).*Diff_Der_I_m_S(s,i));
+            Cc = (r.*varphi + (r.*varsigma./(r+varsigma)).*aa_hat(s,i))./(2.*beta_theta_theta_hat(s,i).*S(s).*I(i).*Diff_Der_I_m_S(s,i)) + beta_theta_hat(s,i)./beta_theta_theta_hat(s,i);
+            Lfoc	= (-Bb -sqrt(Bb.^2 -4.*Aa.*Cc)) ./(2.*Aa);             
+            L_optimal(s,i) = min(L_max, max(Lfoc, 0));
+            L_val = L_optimal(s,i) ;        
+            else
+            L_optimal(s,i) = 0;
+            L_val = L_optimal(s,i) ;  
+            end
+
+
+
+    i_val = max(i-k,1);
+
+                V_next(s,i)  =  ...
+                    r.*log(1-(1-phi)*I(i)).*dt + (r.*varphi)*log(1-L_val).*dt - 0.5.*(I(i).*sigma_d).^2.*dt ...
+                    - Partial_Diff_I_S(s,i).*(sigma_i.^2.*I(i).^2.*S(s).^2 + sigma_d.^2.*I(i).^2.*(1-I(i)).*S(s) ).*dt ...  
+                    -(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i).*dt - (r.*varsigma./(r+varsigma)).*aa.*L_val.*dt ...
+                    + xi.*I_hat(s,i).*dt ...                                          
+                    + (1-dt.*(r+nu)).*V(s,i) ...
+                    +  I(i).*S(s).*(beta_hat(s,i) - 2.*beta_theta_hat(s,i).*L_val + beta_theta_theta_hat(s,i).*L_val.^2).*(dt./hs).* V(s-1,i)  ...
+                    -  I(i).*S(s).*(beta_hat(s,i) - 2.*beta_theta_hat(s,i).*L_val + beta_theta_theta_hat(s,i).*L_val.^2).*(dt./hs).*V(s,i) ...  
+                    + S(s).*I(i).*(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*(dt./hs).* V(s+1,i_val) ...                    
+                    - S(s).*I(i).*(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*(dt./hs).*V(s,i_val) ...
+                    + I(i).*S(s).*(beta_hat(s,i) - 2.*beta_theta_hat(s,i).*L_val + beta_theta_theta_hat(s,i).*L_val.^2).*(dt./hi).* V(s,i+1)   ...                   
+                    - I(i).*S(s).*(beta_hat(s,i) - 2.*beta_theta_hat(s,i).*L_val + beta_theta_theta_hat(s,i).*L_val.^2).*(dt/hi).*V(s,i) ...
+                    + (ggamma-(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i)).*I(i).*(dt./hi).*V(s,i-1)...                                        
+                    - (ggamma-(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i)).*I(i).*(dt/hi).*V(s,i) ...
+                    - ((sigma_d.^2+sigma_i.^2).*I(i).^2.*S(s).^2).*(dt./(hs.^2)).*V(s,i_val) ...                    
+                    + ( 0.5.*((sigma_d.^2+sigma_i.^2).*I(i).^2.*S(s).^2).*(dt./(hs.^2)) ).* V(s+1,i_val) ...
+                    + ( 0.5.*((sigma_d.^2+sigma_i.^2).*I(i).^2.*S(s).^2).*(dt./(hs.^2)) ).* V(s-1,i_val)  ...                                        
+                    - ((sigma_i.*I(i).*S(s)).^2 + (sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2)).*V(s,i) ...                    
+                    + ( 0.5.*((sigma_i.*I(i).*S(s)).^2 + (sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2))  ).* V(s,i+1)   ...
+                    + ( 0.5.*((sigma_i.*I(i).*S(s)).^2 + (sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2))  ).*V(s,i-1); 
+
+                diff_v = diff_v + abs(V_next(s,i)-V(s,i)); if isnan(diff_v) == 1; stop; end; 
+                iters = iters+1;
+                                if isnan(L_optimal(s,i)) == 1; stop; end;      
+
+        end
+                     
+                 
+        
+        
+        
+     end
+         
+        i = ni-(s-1)*k;
+        if s==1 
+                 
+            L_optimal(s,i) = 0;
+            L_val = L_optimal(s,i) ; 
+            dV_dI(s,i) = (1./hi).*(V(s,i)-V(s,i-1));
+  
+                V_next(s,i)  =  ...
+                   r.*log(1-(1-phi)).*dt - 0.5.*(sigma_d).^2.*dt...
+                    -(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i).*dt ...                
+                    + xi.*I_hat(s,i).*dt ...                     
+                    + ( (1-dt.*(r+nu)) - ((ggamma-(delta_hat(s,i)+5.*delta_hat(s,i))).*(dt/hi)  ) ).*V(s,i) ...
+                    + ((ggamma-(delta_hat(s,i)+5.*delta_hat(s,i))).*(dt./hi) ).*V(s,i-1);                  
+
+                
+                diff_v = diff_v + abs(V_next(s,i)-V(s,i)); if isnan(diff_v) == 1; stop; end; 
+                iters = iters+1;
+                
+        elseif s > 1 && s < ns
+            
+             Diff_Der_I_m_S(s,i)  = 1/(hs) * (V(s-1,i+k) - V(s,i) ) ;   
+             
+             if isnan(Diff_Der_I_m_S(s,i)) == 1; stop; end; 
+
+             Partial_Diff_I_S(s,i) = (V(s,i)-V(s,i-1)-V(s-1,i)+V(s-1,i-1))./(hs*hi);
+             dV_dS(s,i) = 1/(hs) * (V(s,i) - V(s-1,i));
+             dV_dI(s,i) = 1/(hi) * (V(s-1,i+1) - V(s-1,i));             
+      
+            if  (r.*varphi).*(1-L_old(s,i)).^(-2)./ ...
+                (2.*beta_theta_theta_hat(s,i).*S(s).*I(i).*(Diff_Der_I_m_S(s,i) )) < 1            
+            Aa = 1;
+            Bb = -(beta_theta_hat(s,i)+beta_theta_theta_hat(s,i))./beta_theta_theta_hat(s,i) - (r.*varsigma./(r+varsigma)).*aa_hat(s,i)./(2.*beta_theta_theta_hat(s,i).*S(s).*I(i).*Diff_Der_I_m_S(s,i));
+            Cc = (r.*varphi + (r.*varsigma./(r+varsigma)).*aa_hat(s,i))./(2.*beta_theta_theta_hat(s,i).*S(s).*I(i).*Diff_Der_I_m_S(s,i)) + beta_theta_hat(s,i)./beta_theta_theta_hat(s,i);
+            Lfoc	= (-Bb -sqrt(Bb.^2 -4.*Aa.*Cc)) ./(2.*Aa);               
+            L_optimal(s,i) = min(L_max, max(Lfoc, 0));
+            L_val = L_optimal(s,i) ;  
+            else
+            L_optimal(s,i) = 0;
+            L_val = L_optimal(s,i) ;  
+            end                                
+
+
+    i_val = i-k;
+                V_next(s,i)  =  ...
+                    r.*log(1-(1-phi)*I(i)).*dt + (r.*varphi)*log(1-L_val).*dt - 0.5.*(I(i).*sigma_d).^2.*dt ...
+                    - Partial_Diff_I_S(s,i).*(sigma_i.^2.*I(i).^2.*S(s).^2 + sigma_d.^2.*I(i).^2.*(1-I(i)).*S(s) ).*dt ...  
+                    -(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i).*dt - (r.*varsigma./(r+varsigma)).*aa.*L_val.*dt ...
+                    + xi.*I_hat(s,i).*dt ...                                          
+                    + (1-dt.*(r+nu)).*V(s,i) ...
+                    +  I(i).*S(s).*(beta_hat(s,i) - 2.*beta_theta_hat(s,i).*L_val + beta_theta_theta_hat(s,i).*L_val.^2).*(dt./hs).* V(s-1,i+k)   ...   ...
+                    -  I(i).*S(s).*(beta_hat(s,i) - 2.*beta_theta_hat(s,i).*L_val + beta_theta_theta_hat(s,i).*L_val.^2).*(dt./hs).*V(s,i) ...  
+                    + S(s).*I(i).*(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*(dt./hs).* V(s+1,i_val) ...                    
+                    - S(s).*I(i).*(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*(dt./hs).*V(s,i_val) ...
+                    + (ggamma-(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i)).*I(i).*(dt./hi).*V(s,i-1)...                                        
+                    - (ggamma-(delta_hat(s,i)+5.*delta_hat(s,i).*I(i)).*I(i)).*I(i).*(dt/hi).*V(s,i) ...
+                    - ((sigma_d.^2+sigma_i.^2).*I(i).^2.*S(s).^2).*(dt./(hs.^2)).*V(s,i-k) ...                    
+                    + ( 0.5.*((sigma_d.^2+sigma_i.^2).*I(i).^2.*S(s).^2).*(dt./(hs.^2)) ).* V(s+1,i-k) ...
+                    + ( 0.5.*((sigma_d.^2+sigma_i.^2).*I(i).^2.*S(s).^2).*(dt./(hs.^2)) ).* V(s-1,i-k)  ...                                        
+                    - ((sigma_i.*I(i).*S(s)).^2 + (sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2)).*V(s-1,i) ...                    
+                    + ( 0.5.*((sigma_i.*I(i).*S(s)).^2 + (sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2))  ).* V(s-1,i+1)   ...
+                    + ( 0.5.*((sigma_i.*I(i).*S(s)).^2 + (sigma_d.*I(i).*(1-I(i))).^2).*(dt./(hi.^2))  ).*V(s-1,i-1);   
+
+ 
+                
+                diff_v = diff_v + abs(V_next(s,i)-V(s,i)); if isnan(diff_v) == 1; stop; end; 
+                iters = iters+1;
+                                if isnan(L_optimal(s,i)) == 1; stop; end;          
+
+        end
+      
+      
+     end
+
+
+    diffmax_policy = norm(L_optimal(:)-L_old(:))/norm(L_old(:)) ;
+    diffmaxpolicy(iteration) = diffmax_policy;
+
+    misses(inds2) = NaN;
+    inds_fx = find(misses == 0);
+    
+    diffmax = r*diff_v / iters ;
+
+    diffmax_iters(iteration) = diffmax;
+    
+    V = V_next ;
+    
+    L_old = L_optimal ;
+    L_check = L_old;
+
+    diff_v = 0 ;
+    iters = 0;
+    iter_check = 0;
+    
+    diffmax
+    iteration
+    diffmax_policy
+
+    
+end
+
+save(filename_save);
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 

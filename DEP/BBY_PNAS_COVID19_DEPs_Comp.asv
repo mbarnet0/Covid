@@ -1,0 +1,95 @@
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+close all
+clear all 
+clc
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+set(0,'defaulttextinterpreter','tex')
+set(0, 'defaultAxesTickLabelInterpreter','tex'); 
+set(0, 'defaultLegendInterpreter','tex');
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+directory = [pwd];
+
+Days = 365;
+DEP_vals = zeros(1,Days);
+
+
+% filesave = '/Results_COVID_SmoothAmb_UncertaintyCases_Correct_DEP'; % 
+% filesave = '/Results_COVID_SmoothAmb_UncertaintyCases_Over_DEP'; % 
+% filesave = '/Results_COVID_SmoothAmb_UncertaintyCases_Under_DEP'; % 
+filesave = '/Results_COVID_SmoothAmb_UncertaintyCases_True_DEP'; % 
+filesave = [directory, '/Results_BBY_PNAS_COVID_InsideUncertainty_42_deps']; % equal-weighted prior (4), uncertainty averse (2)
+
+for day_val = 1:Days
+
+name_val = [directory, filesave, '_Day' num2str(day_val)];
+
+try
+temp_data(day_val) = load(name_val);
+    
+DEP_vals(day_val) = temp_data(day_val).dep;
+
+catch
+end
+
+clear name_val
+
+end
+
+save([directory, filesave]);
+load([directory, filesave]); 
+
+
+inds = find(DEP_vals==0)
+
+DEP_vals(1:25)
+
+color1 = [0    0.4470    0.7410];
+color2 = [0.8500    0.3250    0.0980];
+color3 = [0.9290    0.6940    0.1250];
+color4 = [0.4940    0.1840    0.5560];
+color5 = [0.4660    0.6740    0.1880];
+color6 = [0.3010    0.7450    0.9330];
+color7 = [0.6350    0.0780    0.1840];
+
+
+scale = 1;
+
+time = 365;
+time_alt = time./scale;
+Nyears = time./365; 
+Nyears_alt = 1./scale;
+time_vec = linspace(0,Nyears_alt,time_alt);
+time_vec2 = linspace(0,52*Nyears_alt,time_alt);
+Alt_end = round(length(DEP_vals)./scale);
+
+
+
+DEP_vals(inds) = NaN;
+
+figure 
+hold on;
+plot(time_vec2,0.5.*ones(size(DEP_vals)),'Color','black','LineWidth',3,'LineStyle','--', 'DisplayName', 'Assumed Prior Weight')
+plot(time_vec2,DEP_vals,'Color','blue','LineWidth',3, 'DisplayName', 'Uncertainty Averse DEP')
+title('\textbf{Detection Error Probabilities}', 'Interpreter', 'latex')
+ylabel('$$DEP_t$$', 'Interpreter', 'latex')
+xlabel('\textbf{Weeks}', 'Interpreter', 'latex')
+set(findall(gcf,'type','axes'),'fontsize',16,'fontWeight','bold')
+set(findall(gcf,'type','text'),'FontSize',16,'fontWeight','bold')
+hl = legend('show');
+set(hl, 'Interpreter', 'latex', 'Location', 'southeast');     
+axis([0 52*Nyears_alt 0 0.55])
+xticks([0 10 20 30 40 50])
+set(gcf,'Position',[50 50 650 450])
+ax = gca;
+ax.YAxis.Exponent = 0;
+%     print('covid_RR_DEPs_SA_Correct','-dpng')    
+%     print('covid_RR_DEPs_SA_Over','-dpng')    
+%     print('covid_RR_DEPs_SA_Under','-dpng')  
+    print('covid_RR_DEPs_SA_True','-dpng')    
+
