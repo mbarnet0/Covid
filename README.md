@@ -25,7 +25,7 @@ There are two separate codes to run for this setting:
 1. BBY_PNAS_COVID19_DEPs.m
 2. BBY_PNAS_COVID19_DEPs_Comp.m
 
-##Replicating the Results
+## Replicating the Results
 
 In order to replicate the results, you will need to run each of these codes for each of the cases specified in the paper. There are 16 outside-the-model uncertainty cases, 8 inside-the-model uncertainty cases, and 4 sets of DEPs for each of the ``uncertainty averse'' inside-the-model uncertainty cases. The code in each setting needs to be run in the order listed above, where the ``SmartCases'' codes are optional and can be used to derive solutions with alternative parameter values using existing solutions as initial guesses for the value function.
 
