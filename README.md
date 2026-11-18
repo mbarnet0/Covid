@@ -6,7 +6,7 @@ To derive the numerical results in the paper, there are three sets of code that 
 2. Inside-the-Model Uncertainty Code
 3. Detection Error Probability Code
 
-This repository contains a folder for each setting. I outline the code provided, as well as details about to run the code and in what order the code needs to be run, in order to allow users to replicate the results provided in the paper.
+This repository contains a folder for each setting. I outline the code provided, as well as details about running the code and in what order the code needs to be run, in order to allow users to replicate the results provided in the paper.
 
 ## Outside-the-Model Uncertainty Code
 There are three separate codes to run for this setting:
